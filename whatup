@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141B34">
+<title>Hop</title>
+<style>
+:root{
+  --paper:#EDF0F5; --ink:#141B34; --muted:#667089; --line:#D9DEE8; --panel:#fff; --soft:#F6F8FB;
+  --c:#2F6BFF; --live:#22A06B; --wait:#E0A100; --off:#9AA3B5; --bad:#D64545;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font:16px/1.4 "Avenir Next","Segoe UI",ui-rounded,system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
+button,textarea,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;text-align:inherit}
+:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+[hidden]{display:none!important}
+
+#app{display:grid;grid-template-columns:340px minmax(0,1fr);height:100dvh;max-width:1200px;margin:0 auto;background:var(--panel)}
+
+/* list */
+.list{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+.list-head{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 12px}
+.list-head h1{font-size:30px;font-weight:800;letter-spacing:-.03em}
+.me{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;background:var(--soft);font-weight:600;font-size:14px;max-width:60%}
+.me b{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;flex:none}
+.me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.links{flex:1;overflow-y:auto}
+.link{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:12px 16px;border-bottom:1px solid var(--line)}
+.link.active{background:#F1F4FA}
+.link .mid{display:flex;flex-direction:column;min-width:0}
+.link .mid strong{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prev{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:var(--muted)}
+.pill{background:var(--c);color:#fff;border-radius:999px;min-width:20px;padding:1px 7px;text-align:center;font-size:12px}
+.link .pill{background:var(--ink)}
+.list-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+
+.badge{position:relative;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:#fff;background:var(--c);flex:none}
+.badge .dot{position:absolute;right:-4px;bottom:-4px;width:13px;height:13px;border-radius:50%;border:2px solid #fff;background:var(--off)}
+.dot.live{background:var(--live)} .dot.connecting{background:var(--wait)} .dot.offline{background:var(--off)}
+
+/* chat */
+.chat{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--paper)}
+.chat-head{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 8px;background:#fff;border-top:4px solid var(--c);border-bottom:1px solid var(--line)}
+.chat-head:empty{display:none}
+.ttl{flex:1;min-width:0;display:flex;flex-direction:column}
+.ttl strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ttl span{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back{display:none;width:36px;height:44px;place-items:center}
+.icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.icon:hover{background:var(--soft)}
+.msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px}
+.b{max-width:min(78%,520px);padding:8px 12px 6px;border-radius:18px;background:#fff;box-shadow:0 1px 0 var(--line);overflow-wrap:anywhere}
+.b .t{white-space:pre-wrap}
+.b.mine{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:6px;margin-top:4px}
+.b.them{align-self:flex-start;border-bottom-left-radius:6px;margin-top:4px}
+.b .who{display:block;font-size:12px;font-weight:700;color:var(--c)}
+.b time{display:block;font-size:11px;opacity:.6;text-align:right;margin-top:2px}
+.b.failed{outline:2px solid var(--bad)}
+.b.failed time{color:#FFB4B4;opacity:1}
+.note,.empty{margin:auto;text-align:center;color:var(--muted);max-width:340px;padding:24px}
+.empty h2{color:var(--ink);font-size:22px;margin-bottom:6px}
+.empty .primary{margin-top:16px}
+
+.composer{display:flex;gap:8px;align-items:flex-end;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line)}
+.composer textarea{flex:1;resize:none;max-height:120px;padding:10px 14px;border:1px solid var(--line);border-radius:20px;background:var(--soft);outline:none}
+.composer textarea:focus{border-color:var(--c)}
+.composer textarea:disabled{opacity:.6}
+.send{width:44px;height:44px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;flex:none}
+.send:disabled{background:var(--off)}
+
+/* buttons + fields */
+.primary{background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-weight:700;text-align:center}
+.primary.wide{width:100%}
+.ghost{border:1px solid var(--line);padding:10px 14px;border-radius:12px;font-weight:600;background:#fff;text-align:center}
+.ghost.sm{padding:6px 12px;font-size:14px}
+.danger{color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.lbl{display:block;margin:16px 0 6px;font-weight:700;font-size:14px}
+.in,.code{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft);outline:none}
+.in:focus,.code:focus{border-color:var(--ink)}
+.code{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical;word-break:break-all}
+.hint{font-size:14px;color:var(--muted)}
+.warn{font-size:13px;color:var(--bad)}
+.check{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:14px}
+details{margin-top:18px}
+summary{cursor:pointer;font-weight:700}
+pre{margin-top:10px;padding:12px;border-radius:12px;background:var(--ink);color:#DDE3F5;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;overflow:auto;max-height:240px;white-space:pre}
+
+/* sheet */
+.overlay{position:fixed;inset:0;background:rgba(20,27,52,.45);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{width:min(560px,100%);max-height:90dvh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));animation:up .18s ease-out}
+.sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.sheet-top h2{font-size:22px;letter-spacing:-.02em}
+.x{width:36px;height:36px;border-radius:50%;font-size:24px;line-height:1;text-align:center;background:var(--soft)}
+.tile{display:grid;grid-template-columns:44px 1fr;gap:14px;width:100%;padding:14px 0;border-bottom:1px solid var(--line);align-items:start}
+.tile:last-child{border-bottom:0}
+.tile p{font-size:14px;color:var(--muted);margin-top:2px}
+.tile p.warn{color:var(--bad)}
+.action{display:block;width:100%;padding:14px 0;border-bottom:1px solid var(--line);font-weight:600}
+.action:last-child{border-bottom:0}
+@keyframes up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:min(92vw,420px);opacity:0;pointer-events:none;transition:.2s;z-index:20}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:759px){
+  #app{grid-template-columns:1fr}
+  .chat{display:none}
+  #app.show-chat .list{display:none}
+  #app.show-chat .chat{display:flex}
+  .back{display:grid}
+}
+@media (min-width:760px){
+  .overlay{align-items:center}
+  .sheet{border-radius:22px}
+}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}#toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside class="list">
+    <header class="list-head">
+      <h1>Hop</h1>
+      <button class="me" id="meBtn" aria-label="Change your name"></button>
+    </header>
+    <div class="links" id="links"></div>
+    <div class="list-foot"><button class="primary wide" id="addBtn">New connection</button></div>
+  </aside>
+  <main class="chat" id="chat">
+    <header class="chat-head" id="chatHead"></header>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <div class="composer" id="composer" hidden>
+      <textarea id="input" rows="1" placeholder="Message" aria-label="Message"></textarea>
+      <button class="send" id="sendBtn" aria-label="Send message"></button>
+    </div>
+  </main>
+</div>
+<div id="sheetRoot"></div>
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+function h(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat().forEach(k => { if (k != null && k !== false) e.append(k); });
+  return e;
+}
+const fmt = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4200);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast('Copied'); }
+  catch (e) {
+    const t = h('textarea'); t.value = text; document.body.append(t); t.select();
+    try { document.execCommand('copy'); toast('Copied'); } catch (_) { toast('Select the text and copy it by hand'); }
+    t.remove();
+  }
+}
+
+const ICON = {
+  p2p:   '<circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/>',
+  ws:    '<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/>',
+  ble:   '<path d="M7 7l10 10-5 5V2l5 5L7 17"/>',
+  mail:  '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  local: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  more:  '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  back:  '<path d="M15 5l-7 7 7 7"/>',
+  send:  '<path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/>'
+};
+const svg = (n, s = 22) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+
+const TYPES = {
+  local: { label: 'This device', color: '#C4337A', icon: 'local' },
+  p2p:   { label: 'Direct link', color: '#2F6BFF', icon: 'p2p' },
+  ws:    { label: 'Wi-Fi server', color: '#1F8A5B', icon: 'ws' },
+  ble:   { label: 'Bluetooth', color: '#0E8FA0', icon: 'ble' },
+  email: { label: 'Email', color: '#B97300', icon: 'mail' }
+};
+const NUS = { svc: '6e400001-b5a3-f393-e0a9-e50e24dcca9e', rx: '6e400002-b5a3-f393-e0a9-e50e24dcca9e', tx: '6e400003-b5a3-f393-e0a9-e50e24dcca9e' };
+
+/* ---------- state ---------- */
+const me = { sid: uid(), name: store.get('hop.name', '') };
+let links = [];
+let activeId = null;
+let activePair = null;
+const cur = () => links.find(l => l.id === activeId);
+const mk = (type, title, extra = {}) => ({ id: uid(), type, title, msgs: [], status: 'offline', unread: 0, t: Date.now(), ...extra });
+const pkt = m => ({ t: 'msg', sid: me.sid, name: me.name, id: m.id, text: m.text, ts: m.ts });
+const lastTs = l => (l.msgs.length ? l.msgs[l.msgs.length - 1].ts : l.t) || 0;
+
+function save() {
+  store.set('hop.links', links.map(({ id, type, title, url, email, gmail, t, msgs }) => ({ id, type, title, url, email, gmail, t, msgs: msgs.slice(-200) })));
+}
+function setStatus(l, s) { l.status = s; render(); }
+
+function receive(l, p) {
+  if (p.sid === me.sid) return;
+  if (p.id && l.msgs.some(m => m.id === p.id)) return;
+  l.msgs.push({ id: p.id || uid(), mine: false, name: p.name || l.title, text: String(p.text || '').slice(0, 4000), ts: p.ts || Date.now() });
+  if (l.id !== activeId) l.unread++;
+  save(); render(l.id === activeId);
+}
+
+/* ---------- transports ---------- */
+// This device: other tabs of the same page
+function wireLocal(l) {
+  if (!('BroadcastChannel' in window)) { l.send = () => { throw new Error('offline'); }; return; }
+  const bc = new BroadcastChannel('hop-local');
+  l.bc = bc; l.status = 'live';
+  bc.onmessage = e => { if (e.data && e.data.t === 'msg') receive(l, e.data); };
+  l.send = m => bc.postMessage(pkt(m));
+}
+
+// Wi-Fi server: WebSocket relay on your network
+function wireWs(l) {
+  l.reconnect = () => wsConnect(l);
+  l.send = m => {
+    if (!l.ws || l.ws.readyState !== 1) throw new Error('offline');
+    l.ws.send(JSON.stringify(pkt(m)));
+  };
+}
+function wsConnect(l) {
+  setStatus(l, 'connecting');
+  let ws;
+  try { ws = new WebSocket(l.url); } catch (e) { setStatus(l, 'offline'); toast('That server address is not valid.'); return; }
+  l.ws = ws;
+  ws.onopen = () => setStatus(l, 'live');
+  ws.onclose = () => { if (l.ws === ws) setStatus(l, 'offline'); };
+  ws.onerror = () => toast('Could not reach ' + l.url + '. Check the server is running and on the same Wi-Fi.');
+  ws.onmessage = e => { try { const p = JSON.parse(e.data); if (p.t === 'msg') receive(l, p); } catch (_) {} };
+}
+
+// Direct link: WebRTC data channel, paired by swapping two codes
+const enc = d => btoa(JSON.stringify({ type: d.type, sdp: d.sdp }));
+const dec = s => { const o = JSON.parse(atob(s.replace(/\s+/g, ''))); if (!o.sdp || !o.type) throw new Error('bad'); return o; };
+function iceDone(pc) {
+  return new Promise(res => {
+    if (pc.iceGatheringState === 'complete') return res();
+    const t = setTimeout(res, 3500);
+    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+  });
+}
+function newPeer() {
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  const l = mk('p2p', 'New peer', { status: 'connecting', pc });
+  l.reconnect = () => pairSheet();
+  l.send = () => { throw new Error('offline'); };
+  pc.onconnectionstatechange = () => { if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) setStatus(l, 'offline'); };
+  links.push(l); activePair = l; save(); render();
+  return { pc, l };
+}
+function wireChannel(l, ch) {
+  l.ch = ch;
+  ch.onopen = () => {
+    ch.send(JSON.stringify({ t: 'hello', name: me.name }));
+    setStatus(l, 'live');
+    if (activePair === l) { activePair = null; closeSheet(); select(l.id); toast('Connected'); }
+  };
+  ch.onclose = () => setStatus(l, 'offline');
+  ch.onmessage = e => {
+    let p; try { p = JSON.parse(e.data); } catch (_) { return; }
+    if (p.t === 'hello') { l.title = p.name || l.title; save(); render(); }
+    else if (p.t === 'msg') receive(l, p);
+  };
+  l.send = m => { if (ch.readyState !== 'open') throw new Error('offline'); ch.send(JSON.stringify(pkt(m))); };
+  if (ch.readyState === 'open') ch.onopen();
+}
+
+// Bluetooth LE: Nordic UART Service (works with ESP32, nRF, micro:bit and similar)
+function wireBle(l) {
+  l.reconnect = () => bleReconnect(l);
+  l.send = async m => {
+    if (!l.rx) throw new Error('offline');
+    const data = new TextEncoder().encode(m.text + '\n');
+    for (let i = 0; i < data.length; i += 20) {
+      const chunk = data.slice(i, i + 20);
+      if (l.rx.properties.writeWithoutResponse) await l.rx.writeValueWithoutResponse(chunk);
+      else await l.rx.writeValueWithResponse(chunk);
+    }
+  };
+}
+async function bleConnect(l) {
+  setStatus(l, 'connecting');
+  const dev = l.device;
+  try {
+    const server = await dev.gatt.connect();
+    const svc = await server.getPrimaryService(NUS.svc);
+    l.rx = await svc.getCharacteristic(NUS.rx);
+    const tx = await svc.getCharacteristic(NUS.tx);
+    await tx.startNotifications();
+    const td = new TextDecoder(); let buf = '', flush;
+    const emit = line => { if (line) receive(l, { name: dev.name || l.title, text: line, ts: Date.now(), id: uid() }); };
+    tx.oncharacteristicvaluechanged = e => {
+      buf += td.decode(e.target.value, { stream: true });
+      let i; while ((i = buf.indexOf('\n')) >= 0) { emit(buf.slice(0, i).replace(/\r$/, '')); buf = buf.slice(i + 1); }
+      clearTimeout(flush);
+      if (buf) flush = setTimeout(() => { emit(buf); buf = ''; }, 400);
+    };
+    dev.ongattserverdisconnected = () => { l.rx = null; setStatus(l, 'offline'); };
+    setStatus(l, 'live');
+  } catch (err) {
+    l.rx = null; setStatus(l, 'offline');
+    toast(err && err.name === 'NotFoundError'
+      ? 'This device has no serial (Nordic UART) service, so Hop cannot chat with it.'
+      : 'Bluetooth: ' + (err && err.message ? err.message : 'could not connect'));
+  }
+}
+async function bleReconnect(l) {
+  if (!l.device) {
+    try { l.device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [NUS.svc] }); }
+    catch (e) { if (e.name !== 'NotFoundError') toast(e.message); return; }
+  }
+  bleConnect(l);
+}
+
+// Email: compose in the mail app
+function wireEmail(l) {
+  l.status = 'live';
+  l.send = m => {
+    const subj = 'Message from ' + me.name;
+    if (l.gmail) window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(l.email) + '&su=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(m.text), '_blank');
+    else location.href = 'mailto:' + l.email + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(m.text);
+    toast('Opening your mail app. Press send there to deliver it.');
+  };
+}
+
+function wire(l) {
+  if (l.type === 'local') wireLocal(l);
+  else if (l.type === 'ws') { wireWs(l); wsConnect(l); }
+  else if (l.type === 'ble') wireBle(l);
+  else if (l.type === 'p2p') { l.reconnect = () => pairSheet(); l.send = () => { throw new Error('offline'); }; }
+  else if (l.type === 'email') wireEmail(l);
+}
+function teardown(l) {
+  try { if (l.bc) l.bc.close(); } catch (_) {}
+  try { if (l.ws) { const w = l.ws; l.ws = null; w.close(); } } catch (_) {}
+  try { if (l.ch) l.ch.close(); } catch (_) {}
+  try { if (l.pc) l.pc.close(); } catch (_) {}
+  try { if (l.device && l.device.gatt.connected) l.device.gatt.disconnect(); } catch (_) {}
+}
+
+/* ---------- sending ---------- */
+async function sendCurrent() {
+  const l = cur(), inp = $('#input');
+  const text = inp.value.trim();
+  if (!l || !text) return;
+  const m = { id: uid(), mine: true, name: me.name, text, ts: Date.now() };
+  l.msgs.push(m); inp.value = ''; autosize(); render(true);
+  try { await l.send(m); }
+  catch (e) {
+    m.failed = true;
+    toast(e && e.message === 'offline' ? 'Not sent. This connection is offline.' : 'Not sent: ' + (e && e.message ? e.message : 'unknown error'));
+  }
+  save(); render(true);
+}
+function autosize() { const t = $('#input'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
+
+/* ---------- rendering ---------- */
+function sub(l) {
+  if (l.status === 'connecting') return 'Connecting…';
+  if (l.status === 'offline') return 'Offline';
+  return {
+    local: 'Open Hop in another tab to chat',
+    p2p: 'Direct and encrypted',
+    ws: 'Relay at ' + (l.url || ''),
+    ble: 'Bluetooth LE',
+    email: 'Sends through your mail app to ' + l.email
+  }[l.type];
+}
+const badge = l => h('span', { class: 'badge', style: '--c:' + TYPES[l.type].color, html: svg(TYPES[l.type].icon) }, h('i', { class: 'dot ' + l.status }));
+
+function renderList() {
+  $('#meBtn').replaceChildren(h('b', {}, (me.name || '?').trim().charAt(0).toUpperCase()), h('span', {}, me.name));
+  const sorted = [...links].sort((a, b) => lastTs(b) - lastTs(a));
+  $('#links').replaceChildren(...sorted.map(l => {
+    const lm = l.msgs[l.msgs.length - 1];
+    return h('button', { class: 'link' + (l.id === activeId ? ' active' : ''), style: '--c:' + TYPES[l.type].color, onclick: () => select(l.id) },
+      badge(l),
+      h('div', { class: 'mid' }, h('strong', {}, l.title), h('span', { class: 'prev' }, lm ? (lm.mine ? 'You: ' : '') + lm.text : sub(l))),
+      h('div', { class: 'meta' }, lm ? h('time', {}, fmt(lm.ts)) : null, l.unread ? h('b', { class: 'pill' }, String(l.unread)) : null));
+  }));
+}
+
+const EMPTY_NOTE = {
+  local: 'Open this page in a second tab, give it a different name, and say hi.',
+  p2p: 'Say hi. Messages go straight to the other device.',
+  ws: 'Say hi. Everyone connected to this relay will see it.',
+  ble: 'Say hi. Text you send is written to the device, and anything it sends back shows up here.',
+  email: 'Each message opens as a draft in your mail app. Use the menu to paste in replies.'
+};
+
+function renderChat(scroll) {
+  const l = cur(), head = $('#chatHead'), msgs = $('#msgs'), comp = $('#composer'), chat = $('#chat');
+  if (!l) {
+    head.replaceChildren(); comp.hidden = true; chat.style.removeProperty('--c');
+    msgs.replaceChildren(h('div', { class: 'empty' }, h('h2', {}, 'Pick a conversation'), h('p', {}, 'Or connect over Wi-Fi, Bluetooth, a direct link, or email.'), h('button', { class: 'primary', onclick: addSheet }, 'New connection')));
+    return;
+  }
+  chat.style.setProperty('--c', TYPES[l.type].color);
+  head.replaceChildren(
+    h('button', { class: 'back icon', 'aria-label': 'Back to conversations', onclick: () => $('#app').classList.remove('show-chat'), html: svg('back') }),
+    badge(l),
+    h('div', { class: 'ttl' }, h('strong', {}, l.title), h('span', {}, sub(l))),
+    (l.status === 'offline' && l.reconnect) ? h('button', { class: 'ghost sm', onclick: () => l.reconnect() }, 'Reconnect') : null,
+    h('button', { class: 'icon', 'aria-label': 'Options', onclick: () => menuSheet(l), html: svg('more') }));
+
+  const near = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 120;
+  let prev = null;
+  const nodes = l.msgs.map(m => {
+    const who = !m.mine && (!prev || prev.mine || prev.name !== m.name);
+    prev = m;
+    return h('div', { class: 'b ' + (m.mine ? 'mine' : 'them') + (m.failed ? ' failed' : '') },
+      who ? h('span', { class: 'who' }, m.name) : null,
+      h('div', { class: 't' }, m.text),
+      h('time', {}, fmt(m.ts) + (m.failed ? ' · Not sent' : '')));
+  });
+  msgs.replaceChildren(...(nodes.length ? nodes : [h('div', { class: 'note' }, EMPTY_NOTE[l.type])]));
+  if (scroll || near) msgs.scrollTop = msgs.scrollHeight;
+
+  comp.hidden = false;
+  const can = l.status === 'live';
+  $('#input').disabled = !can; $('#sendBtn').disabled = !can;
+  $('#input').placeholder = can ? 'Message' : 'Offline. Reconnect to send.';
+}
+
+function render(scroll) { renderList(); renderChat(scroll); }
+function select(id) {
+  activeId = id;
+  const l = cur(); if (l) l.unread = 0;
+  $('#app').classList.add('show-chat');
+  render(true);
+}
+
+/* ---------- sheets ---------- */
+let sheetEl = null;
+function closeSheet() { if (sheetEl) { sheetEl.remove(); sheetEl = null; } }
+function openSheet(title) {
+  closeSheet();
+  const body = h('div');
+  const ov = h('div', { class: 'overlay', onclick: e => { if (e.target === ov) closeSheet(); } },
+    h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+      h('div', { class: 'sheet-top' }, h('h2', {}, title), h('button', { class: 'x', 'aria-label': 'Close', onclick: closeSheet }, '×')),
+      body));
+  $('#sheetRoot').append(ov); sheetEl = ov;
+  return { body };
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+function nameSheet() {
+  const s = openSheet('Your name');
+  const inp = h('input', { class: 'in', value: me.name, maxlength: 24, autocomplete: 'off' });
+  const done = () => { me.name = inp.value.trim() || me.name; store.set('hop.name', me.name); closeSheet(); render(); };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(); });
+  s.body.append(h('p', { class: 'hint' }, 'People you chat with see this name next to your messages.'), h('label', { class: 'lbl' }, 'Display name'), inp, h('div', { class: 'row' }, h('button', { class: 'primary', onclick: done }, 'Save name')));
+  inp.focus(); inp.select();
+}
+
+function addSheet() {
+  const s = openSheet('New connection');
+  const tile = (type, title, desc, fn, warn) => h('button', { class: 'tile', style: '--c:' + TYPES[type].color, onclick: fn },
+    h('span', { class: 'badge', html: svg(TYPES[type].icon) }),
+    h('div', {}, h('strong', {}, title), h('p', {}, desc), warn ? h('p', { class: 'warn' }, warn) : null));
+  s.body.append(
+    tile('ws', 'Wi-Fi server', 'Everyone on your network joins one small relay. Best for groups and for phones on the same Wi-Fi.', wsSheet),
+    tile('p2p', 'Direct link', 'Pair with one phone or computer, on the same Wi-Fi or across the internet. You swap two codes. No server.', pairSheet),
+    tile('ble', 'Bluetooth', 'Chat with a Bluetooth LE device that has a serial service, such as an ESP32, nRF board or micro:bit.', bleAdd, navigator.bluetooth ? null : 'This browser has no Bluetooth access. Use Chrome or Edge.'),
+    tile('email', 'Email', 'Write here and send through your mail app. Paste replies back in from your inbox.', emailSheet));
+}
+
+function codeBox(text) {
+  const ta = h('textarea', { class: 'code', readonly: true, rows: 5 });
+  ta.value = text; ta.addEventListener('focus', () => ta.select());
+  return h('div', {}, ta, h('div', { class: 'row' },
+    h('button', { class: 'ghost', onclick: () => copy(text) }, 'Copy code'),
+    navigator.share ? h('button', { class: 'ghost', onclick: () => navigator.share({ text }).catch(() => {}) }, 'Share') : null));
+}
+
+function pairSheet() {
+  if (!window.RTCPeerConnection) { toast('This browser does not support direct links.'); return; }
+  const s = openSheet('Direct link');
+  s.body.append(
+    h('p', { class: 'hint' }, 'Both people open this page. One starts, the other joins, and you swap two codes in any app you like.'),
+    h('div', { class: 'row' },
+      h('button', { class: 'primary', onclick: () => pairStart(s) }, 'Start a chat'),
+      h('button', { class: 'ghost', onclick: () => pairJoin(s) }, 'Join a chat')));
+}
+async function pairStart(s) {
+  s.body.replaceChildren(h('p', { class: 'hint' }, 'Making your code…'));
+  const { pc, l } = newPeer();
+  wireChannel(l, pc.createDataChannel('hop'));
+  try { await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc); }
+  catch (e) { s.body.replaceChildren(h('p', { class: 'warn' }, 'Could not make a code: ' + e.message)); return; }
+  const reply = h('textarea', { class: 'code', rows: 5, placeholder: 'Paste their reply code here' });
+  const status = h('p', { class: 'hint' });
+  s.body.replaceChildren(
+    h('label', { class: 'lbl' }, '1. Send this code to the other person'), codeBox(enc(pc.localDescription)),
+    h('label', { class: 'lbl' }, '2. Paste the code they send back'), reply,
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: async () => {
+      try { await pc.setRemoteDescription(dec(reply.value)); status.textContent = 'Connecting… this window closes when you are in.'; }
+      catch (e) { toast('That code did not work. Copy it again in full.'); }
+    } }, 'Connect')), status);
+}
+function pairJoin(s) {
+  const inp = h('textarea', { class: 'code', rows: 5, placeholder: 'Paste the code you received' });
+  s.body.replaceChildren(
+    h('label', { class: 'lbl' }, 'Paste the code you received'), inp,
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: async () => {
+      let offer; try { offer = dec(inp.value); } catch (e) { toast('That code is not valid. Copy it again in full.'); return; }
+      s.body.replaceChildren(h('p', { class: 'hint' }, 'Making your reply code…'));
+      const { pc, l } = newPeer();
+      pc.ondatachannel = e => wireChannel(l, e.channel);
+      try { await pc.setRemoteDescription(offer); await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc); }
+      catch (e) { s.body.replaceChildren(h('p', { class: 'warn' }, 'Could not join: ' + e.message)); return; }
+      s.body.replaceChildren(h('label', { class: 'lbl' }, 'Send this reply code back'), codeBox(enc(pc.localDescription)),
+        h('p', { class: 'hint' }, 'Keep this open. It closes by itself once you are connected.'));
+    } }, 'Create reply code')));
+}
+
+const SERVER_JS = `// Hop relay. Save as server.js next to messenger.html
+// Run:  npm install ws   then   node server.js
+const http = require('http'), fs = require('fs'), path = require('path'), os = require('os');
+const { WebSocketServer } = require('ws');
+const page = path.join(__dirname, 'messenger.html');
+
+const server = http.createServer((req, res) => {
+  fs.readFile(page, (err, buf) => {
+    if (err) { res.writeHead(404); return res.end('messenger.html not found next to server.js'); }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(buf);
+  });
+});
+
+const wss = new WebSocketServer({ server });
+wss.on('connection', ws => ws.on('message', data => {
+  const text = data.toString();
+  wss.clients.forEach(c => { if (c !== ws && c.readyState === 1) c.send(text); });
+}));
+
+server.listen(8787, '0.0.0.0', () => {
+  const ips = Object.values(os.networkInterfaces()).flat()
+    .filter(i => i.family === 'IPv4' && !i.internal).map(i => i.address);
+  console.log('Open this on any device on your Wi-Fi:');
+  ips.forEach(ip => console.log('  http://' + ip + ':8787'));
+});
+`;
+
+function wsSheet() {
+  const s = openSheet('Wi-Fi server');
+  const def = location.protocol === 'http:' ? 'ws://' + location.host : location.protocol === 'https:' ? 'wss://' + location.host : 'ws://192.168.1.20:8787';
+  const url = h('input', { class: 'in', value: def, autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false', inputmode: 'url' });
+  const join = () => {
+    const v = url.value.trim();
+    if (!/^wss?:\/\/.+/i.test(v)) { toast('Start the address with ws:// or wss://'); return; }
+    const l = mk('ws', 'Room · ' + v.replace(/^wss?:\/\//i, ''), { url: v });
+    wireWs(l); links.push(l); save(); closeSheet(); wsConnect(l); select(l.id);
+  };
+  s.body.append(
+    h('p', { class: 'hint' }, 'Run the relay on any computer on your Wi-Fi. It also serves this page, so phones can open it from the computer’s address and join the same room.'),
+    h('label', { class: 'lbl' }, 'Server address'), url,
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: join }, 'Join room')),
+    h('details', {}, h('summary', {}, 'I need a server'),
+      h('p', { class: 'hint', style: 'margin-top:8px' }, 'Needs Node.js. Put messenger.html and server.js in one folder, then run it. It prints an address to open on your other devices.'),
+      h('pre', {}, SERVER_JS),
+      h('div', { class: 'row' },
+        h('button', { class: 'ghost', onclick: () => copy(SERVER_JS) }, 'Copy server.js'),
+        h('button', { class: 'ghost', onclick: () => {
+          const a = h('a', { href: URL.createObjectURL(new Blob([SERVER_JS], { type: 'text/javascript' })), download: 'server.js' });
+          document.body.append(a); a.click(); a.remove();
+        } }, 'Download server.js'))));
+}
+
+async function bleAdd() {
+  if (!navigator.bluetooth) { toast('This browser has no Bluetooth access. Use Chrome or Edge.'); return; }
+  let dev;
+  try { dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [NUS.svc] }); }
+  catch (e) { if (e.name !== 'NotFoundError') toast('Bluetooth: ' + e.message); return; }
+  const l = mk('ble', dev.name || 'Bluetooth device', { device: dev });
+  wireBle(l); links.push(l); save(); closeSheet(); select(l.id); bleConnect(l);
+}
+
+function emailSheet() {
+  const s = openSheet('Email');
+  const name = h('input', { class: 'in', placeholder: 'Sam', autocomplete: 'off' });
+  const addr = h('input', { class: 'in', type: 'email', placeholder: 'sam@example.com', autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' });
+  const gm = h('input', { type: 'checkbox', id: 'gm' });
+  s.body.append(
+    h('p', { class: 'hint' }, 'Hop opens each message as a draft addressed to this person. You press send in your mail app.'),
+    h('label', { class: 'lbl' }, 'Name'), name,
+    h('label', { class: 'lbl' }, 'Email address'), addr,
+    h('label', { class: 'check', for: 'gm' }, gm, 'Use Gmail on the web instead of my mail app'),
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => {
+      const a = addr.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a)) { toast('Enter a full email address.'); return; }
+      const l = mk('email', name.value.trim() || a, { email: a, gmail: gm.checked });
+      wireEmail(l); links.push(l); save(); closeSheet(); select(l.id);
+    } }, 'Add contact')));
+}
+
+function replySheet(l) {
+  const s = openSheet('Paste a reply');
+  const ta = h('textarea', { class: 'code', rows: 6, placeholder: 'Paste the text of their email reply' });
+  ta.style.fontFamily = 'inherit'; ta.style.fontSize = '15px';
+  s.body.append(h('p', { class: 'hint' }, 'Email cannot be read from this page, so copy their reply from your inbox and paste it here to keep the thread in one place.'), ta,
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => {
+      const t = ta.value.trim(); if (!t) return;
+      receive(l, { sid: 'mail', name: l.title, text: t, ts: Date.now(), id: uid() }); closeSheet();
+    } }, 'Add to thread')));
+}
+
+function menuSheet(l) {
+  const s = openSheet(l.title);
+  const act = (label, fn, cls = '') => h('button', { class: 'action ' + cls, onclick: fn }, label);
+  let armed = false, timer;
+  const rm = act('Remove connection', () => {
+    if (!armed) { armed = true; rm.textContent = 'Tap again to remove'; timer = setTimeout(() => { armed = false; rm.textContent = 'Remove connection'; }, 3000); return; }
+    clearTimeout(timer); teardown(l); links = links.filter(x => x !== l); activeId = null;
+    $('#app').classList.remove('show-chat'); save(); closeSheet(); render();
+  }, 'danger');
+  s.body.append(
+    (l.reconnect && l.status !== 'live') ? act('Reconnect', () => { closeSheet(); l.reconnect(); }) : null,
+    l.type === 'email' ? act('Paste a reply', () => replySheet(l)) : null,
+    act('Clear messages', () => { l.msgs = []; save(); closeSheet(); render(); }),
+    rm);
+}
+
+/* ---------- boot ---------- */
+(function init() {
+  links = store.get('hop.links', []).map(s => ({ ...s, msgs: s.msgs || [], status: 'offline', unread: 0 }));
+  if (!links.some(l => l.type === 'local')) links.unshift(mk('local', 'Other tabs on this device', { id: 'local' }));
+  links.forEach(wire);
+
+  $('#sendBtn').innerHTML = svg('send');
+  $('#sendBtn').addEventListener('click', sendCurrent);
+  $('#addBtn').addEventListener('click', addSheet);
+  $('#meBtn').addEventListener('click', nameSheet);
+  const inp = $('#input');
+  inp.addEventListener('input', autosize);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer:fine)').matches) { e.preventDefault(); sendCurrent(); }
+  });
+
+  const first = !me.name;
+  if (first) { me.name = 'Guest ' + Math.floor(100 + Math.random() * 900); store.set('hop.name', me.name); }
+  render();
+  if (first) nameSheet();
+})();
+})();
+</script>
+</body>
+</html>
